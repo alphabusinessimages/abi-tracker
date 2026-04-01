@@ -453,21 +453,71 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--tx);
   </div>
 </div>
 
+<!-- SCHEDULE EDITOR MODAL -->
+<div class="modal-bg" id="sched-modal">
+  <div class="modal" style="max-width:760px">
+    <button class="mcls" onclick="closeSchedEditor()">&#10005;</button>
+    <div class="modal-title" id="sched-modal-title">Edit production schedule</div>
+    <div class="modal-sub">Edit, add, or delete individual tasks. Changes are saved immediately.</div>
+
+    <!-- ADD NEW TASK ROW -->
+    <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.05em;color:var(--tx2);text-transform:uppercase;margin-bottom:7px">Add new task to this schedule</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">
+        <input type="text" id="se-label" placeholder="Task description" style="flex:2;min-width:160px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:5px 7px;font-size:12px;color:var(--tx);font-family:'IBM Plex Mono',monospace"/>
+        <input type="date" id="se-date" style="background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:5px 7px;font-size:12px;color:var(--tx);font-family:'IBM Plex Mono',monospace"/>
+        <select id="se-ae" style="background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:5px 7px;font-size:12px;color:var(--tx);font-family:'IBM Plex Mono',monospace"><option value="">AE...</option></select>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">
+        <select id="se-type" style="background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:5px 7px;font-size:12px;color:var(--tx);font-family:'IBM Plex Mono',monospace">
+          <option value="task">General task</option>
+          <option value="schedule_meeting">Schedule meeting</option>
+          <option value="followup">Follow up</option>
+          <option value="feedback">Give feedback</option>
+          <option value="submit">Submit / deliver</option>
+        </select>
+        <select id="se-notify" style="background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:5px 7px;font-size:12px;color:var(--tx);font-family:'IBM Plex Mono',monospace">
+          <option value="">Coordinate with...</option>
+          <option value="Creative team">Creative team</option>
+          <option value="Copy team">Copy team</option>
+          <option value="WPA">WPA</option>
+          <option value="DFW">DFW</option>
+          <option value="Traffic Team">Traffic Team</option>
+        </select>
+        <input type="text" id="se-note" placeholder="Note (optional)" style="flex:1;min-width:100px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:5px 7px;font-size:12px;color:var(--tx);font-family:'IBM Plex Mono',monospace"/>
+      </div>
+      <button class="btn bd" style="font-size:11px;padding:5px 14px" onclick="seAddTask()">+ Add task</button>
+    </div>
+
+    <!-- EXISTING TASKS LIST -->
+    <div id="sched-task-list"></div>
+
+    <div style="display:flex;gap:6px;margin-top:12px">
+      <button class="btn gb" onclick="closeSchedEditor()">Done</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast-el"></div>
 
 <!-- EDIT RECURRING MODAL -->
 <div class="modal-bg" id="editrec-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:680px">
     <button class="mcls" onclick="closeEditRec()">&#10005;</button>
     <div class="modal-title">Edit recurring workflow</div>
     <div style="margin-top:10px">
       <div class="er"><input type="text" id="er-name" placeholder="Workflow name"/></div>
       <div class="er">
         <select id="er-freq"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
-        <input type="text" id="er-anchor" placeholder="Anchor day"/>
+        <input type="text" id="er-anchor" placeholder="Anchor: day number (13) or weekday (Monday)"/>
+        <select id="er-proj"><option value="">No project</option></select>
       </div>
       <div class="er"><input type="text" id="er-desc" placeholder="Description (optional)"/></div>
-      <div style="display:flex;gap:4px;margin-top:7px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--tx2);text-transform:uppercase;margin:10px 0 5px">Workflow steps</div>
+      <div style="font-size:10px;color:var(--tx3);margin-bottom:6px">Offset = days before/after anchor. Negative = before (e.g. -3 = 3 days before).</div>
+      <div id="er-steps"></div>
+      <button class="btn gb" style="font-size:11px;padding:4px 11px;margin-top:5px" onclick="addEditRecStep()">+ Add step</button>
+      <div style="display:flex;gap:4px;margin-top:12px">
         <button class="e-sv" onclick="saveEditRec()">Save changes</button>
         <button class="e-cn" onclick="closeEditRec()">Cancel</button>
       </div>
@@ -896,7 +946,14 @@ function pCard(p,ia){
   const tasks=D.tasks.filter(t=>t.projectId===p.id).sort((a,b)=>a.date.localeCompare(b.date));
   const done=tasks.filter(t=>t.done).length,ov=tasks.filter(t=>!t.done&&isPast(t.date)).length,open=openProj[p.id];
   return `<div class="pc${ia?' arch':''}"><div class="ph" onclick="togProj(${p.id})"><div><div class="pname">${p.name}</div><div class="pclient">${p.client||''}</div></div><div class="pstats">${ia?'<span class="sp arch">Archived</span>':''}${ov&&!ia?`<span class="sp danger">${ov} overdue</span>`:''}<span class="sp${done===tasks.length&&tasks.length>0?' ok':''}">${done}/${tasks.length}</span><span style="font-size:11px;color:var(--tx3)">${open?'&#9650;':'&#9660;'}</span></div></div>
-    <div class="pb${open?' open':''}">${tasks.length?tasks.map(t=>tRow(t,true)).join(''):'<div class="empty">No tasks.</div>'}<div class="par">${ia?`<button class="btn gb" onclick="unArch(${p.id})">Restore</button>`:`<button class="btn gb" onclick="archProj(${p.id})">Archive</button>`}<button class="btn gb" onclick="openEditProj(${p.id})">Edit name</button><button class="btn gb" style="color:var(--urg);border-color:var(--urg)" onclick="delProj(${p.id})">Delete</button></div></div></div>`;
+    <div class="pb${open?' open':''}">
+    ${tasks.length?tasks.map(t=>tRow(t,true)).join(''):'<div class="empty">No tasks — paste a production schedule or add tasks manually.</div>'}
+    <div class="par">
+      ${ia?`<button class="btn gb" onclick="unArch(${p.id})">Restore</button>`:`<button class="btn gb" onclick="archProj(${p.id})">Archive</button>`}
+      <button class="btn gb" onclick="openEditProj(${p.id})">Edit name</button>
+      <button class="btn gb" onclick="openSchedEditor(${p.id})" style="border-color:var(--not-c);color:var(--not-c)">Edit schedule</button>
+      <button class="btn gb" style="color:var(--urg);border-color:var(--urg)" onclick="delProj(${p.id})">Delete</button>
+    </div></div></div>`;
 }
 function togProj(id){openProj[id]=!openProj[id];renderProjs();renderArch();}
 function archProj(id){const p=D.projects.find(x=>x.id===id);if(p){p.archived=true;save();renderProjs();renderArch();toast('Archived');}}
@@ -998,29 +1055,136 @@ function qSave(){
 function qClear(){document.getElementById('qi').value='';document.getElementById('pp-wrap').classList.remove('show');const old=document.getElementById('pp-rsn');if(old)old.remove();}
 
 // ─── PASTE ────────────────────────────────────────────────────
-function parseSched(raw,pid){
+async function parseSched(raw,pid){
+  // Use AI to parse any production schedule format
+  const today=TODAY;
+  const year=new Date().getFullYear();
+  const names=D.members.map(m=>m.name).join(', ');
+  const prompt=`You are a production schedule parser for an ad agency. Today is ${today} (year ${year}).
+Team AE names: ${names}.
+
+Parse this production schedule into structured tasks. Each line is one task.
+Dates can be in ANY format: M/D, Month Day, day of week (relative to today), etc.
+If a line starts with an AE name or initials (like "AE", "Sophia", "Sri", "Danielle"), that is the assignee.
+If no AE is specified, leave ae as null.
+
+Return ONLY a JSON array, no markdown:
+[
+  {
+    "label": "clean task description (remove date, remove AE name from start)",
+    "date": "YYYY-MM-DD",
+    "ae": "AE name or null",
+    "type": "task|schedule_meeting|followup|feedback|submit",
+    "notify": "WPA|DFW|Creative team|Copy team|Traffic Team or empty string",
+    "note": "time constraint like 'by noon' or empty string"
+  }
+]
+
+Rules:
+- "AE" at start of line means assigned to an AE but no specific one — set ae to null
+- Relative days like "Wednesday", "next Tuesday" = nearest upcoming that day from ${today}
+- Multi-date lines like "Review: 4/1, 4/5" = create one task per date with same label
+- If a line has no date at all, make your best guess or use ${today}
+- followup type for: check in, follow up, remind, ping
+- schedule_meeting for: schedule, book, set up call/meeting
+- feedback for: review, feedback, approval
+- submit for: send, submit, deliver, upload
+
+Production schedule:
+${raw}`;
+
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content:prompt}]})});
+    const data=await res.json();
+    const text=data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(text);
+    return parsed.map(p=>({
+      date:p.date||today,
+      type:p.type||'task',
+      label:p.label||'',
+      note:p.note||'',
+      notify:p.notify||'',
+      remDays:2,
+      assignees:p.ae?[p.ae]:[],
+      ae_suggestion:p.ae||null,
+      _skip:false,
+      _pid:pid
+    })).filter(p=>p.label);
+  } catch(e) {
+    // Fallback: basic local parse
+    return localParseSched(raw,pid);
+  }
+}
+
+function localParseSched(raw,pid){
   const lines=raw.split('\n').filter(l=>l.trim()),y=new Date().getFullYear(),results=[];
+  const months={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+    january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+  const days=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+
+  function parseDate(str){
+    const s=str.trim();
+    // M/D or M/D/YY
+    const md=s.match(/(\d{1,2})\/(\d{1,2})/);
+    if(md)return `${y}-${String(+md[1]).padStart(2,'0')}-${String(+md[2]).padStart(2,'0')}`;
+    // Month Day or Month Day,Year
+    const mname=s.match(/([a-z]+)\s+(\d{1,2})/i);
+    if(mname){const mn=months[mname[1].toLowerCase().slice(0,3)];if(mn)return `${y}-${String(mn).padStart(2,'0')}-${String(+mname[2]).padStart(2,'0')}`;}
+    // Weekday
+    const wd=days.findIndex(d=>s.toLowerCase().includes(d));
+    if(wd>=0){const now=new Date(TODAY+'T00:00:00');const diff=(wd-now.getDay()+7)%7||7;const target=new Date(now);target.setDate(now.getDate()+diff);return toS(target);}
+    return null;
+  }
+
   lines.forEach(line=>{
     const l=line.trim();if(!l)return;
+    // Multi-date colon format
     const multi=l.match(/^(.+?):\s*([\d\/,\s]+)$/);
-    if(multi){const label=multi[1].trim();multi[2].split(',').map(s=>s.trim()).filter(Boolean).forEach(dp=>{const dm=dp.match(/(\d{1,2})\/(\d{1,2})/);if(!dm)return;const date=`${y}-${String(+dm[1]).padStart(2,'0')}-${String(+dm[2]).padStart(2,'0')}`;let type='task';if(/internal review|creative.*ae|ae.*creative/i.test(label))type='internal_review';else if(/feedback/i.test(label))type='feedback';else if(/schedule|book/i.test(label))type='schedule_meeting';let notify='';if(/creative/i.test(label))notify='Creative team';else if(/copy/i.test(label))notify='Copy team';results.push({date,type,label,note:'',notify,remDays:2,assignees:[],_skip:false,_pid:pid});});return;}
-    const dm=l.match(/^(\d{1,2})\/(\d{1,2})/);if(!dm)return;
-    const date=`${y}-${String(+dm[1]).padStart(2,'0')}-${String(+dm[2]).padStart(2,'0')}`;
-    let notify='';if(/WPA/i.test(l))notify='WPA';else if(/DFW/i.test(l))notify='DFW';else if(/creative/i.test(l))notify='Creative team';else if(/copy/i.test(l))notify='Copy team';else if(/traffic/i.test(l))notify='Traffic Team';
-    let type='task';if(/schedule|book|kickoff/i.test(l))type='schedule_meeting';else if(/client meeting/i.test(l))type='client_meeting';else if(/feedback|approval|review/i.test(l))type='feedback';else if(/notify|let.*know/i.test(l))type='notify_external';else if(/internal review/i.test(l))type='internal_review';else if(/submit|send|deliver|upload/i.test(l))type='submit';
-    const nm=l.match(/by\s+([\w\s:APMapm]+?)(?:\s*$)/i),note=nm?nm[0].trim():'';
-    let label=l.replace(/^\d{1,2}\/\d{1,2}\s*/,'').replace(/\*\*/g,'').trim().replace(/^\s*(ABI|DFW|WPA)\b\s*/i,'').trim();
-    results.push({date,type,label,note,notify,remDays:2,assignees:[],_skip:false,_pid:pid});
+    if(multi){
+      const label=multi[1].trim();
+      multi[2].split(',').map(s=>s.trim()).filter(Boolean).forEach(dp=>{
+        const date=parseDate(dp);if(!date)return;
+        let type='task';if(/feedback/i.test(label))type='feedback';else if(/schedule|book/i.test(label))type='schedule_meeting';
+        results.push({date,type,label,note:'',notify:'',remDays:2,assignees:[],_skip:false,_pid:pid});
+      });return;
+    }
+    // Extract date from anywhere in line
+    const dateMatch=l.match(/[-–]?\s*((\d{1,2}\/\d{1,2})|([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?)|((next\s+)?[A-Za-z]+day))\s*$/i);
+    let date=TODAY,label=l;
+    if(dateMatch){date=parseDate(dateMatch[1])||TODAY;label=l.slice(0,dateMatch.index).trim();}
+    else{// date at start
+      const dm=l.match(/^(\d{1,2}\s*\/\s*\d{1,2})/);
+      if(dm){date=parseDate(dm[1])||TODAY;label=l.slice(dm[0].length).trim();}
+    }
+    // Detect AE at start
+    let ae=null;
+    const aePat=new RegExp('^(AE|'+D.members.map(m=>m.name).join('|')+')\\b\\s*','i');
+    const aeM=label.match(aePat);
+    if(aeM){const matched=D.members.find(m=>m.name.toLowerCase()===aeM[1].toLowerCase());ae=matched?matched.name:null;label=label.slice(aeM[0].length).trim();}
+    if(!label)return;
+    let type='task';
+    if(/schedule|book|set up/i.test(label))type='schedule_meeting';
+    else if(/follow.?up|check.?in|remind|ping/i.test(label))type='followup';
+    else if(/feedback|review|approval/i.test(label))type='feedback';
+    else if(/submit|send|deliver/i.test(label))type='submit';
+    let notify='';
+    if(/WPA/i.test(label))notify='WPA';else if(/DFW/i.test(label))notify='DFW';
+    else if(/creative/i.test(label))notify='Creative team';else if(/traffic/i.test(label))notify='Traffic Team';
+    label=label.replace(/^\s*(ABI|DFW|WPA)\b\s*/i,'').trim();
+    results.push({date,type,label,note:'',notify,remDays:2,assignees:ae?[ae]:[],ae_suggestion:ae,_skip:false,_pid:pid});
   });
   return results;
 }
 function genReminders(items){const r=[];items.forEach(item=>{if(['internal_review','schedule_meeting','client_meeting','feedback'].includes(item.type)){const rd=toS(aDay(new Date(item.date+'T00:00:00'),-7));if(rd>=TODAY)r.push({date:rd,type:'schedule_meeting',label:`Schedule: ${item.label}`,note:'1 week before',notify:item.notify||'',remDays:2,assignees:[],_skip:false,_pid:item._pid,_isRem:true,_lDate:item.date});}});return r;}
 function chkEx(){const pid=document.getElementById('pp-proj').value;document.getElementById('wb').classList.toggle('show',pid&&D.tasks.filter(t=>t.projectId===parseInt(pid)).length>0);}
-function openPaste(){
+async function openPaste(){
   const pid=document.getElementById('pp-proj').value,raw=document.getElementById('pt').value.trim();
   if(!pid){toast('Select a project first');return;}if(!raw){toast('Paste a schedule first');return;}
   replacePid=parseInt(pid);const ex=D.tasks.filter(t=>t.projectId===replacePid);
-  const items=parseSched(raw,replacePid),rems=genReminders(items);
+  setSaveUI("syncing","Parsing schedule with AI...");
+  const items=await parseSched(raw,replacePid);
+  const rems=genReminders(items);
+  setSaveUI("connected","Live — all changes sync instantly");
   pending=[...items,...rems].sort((a,b)=>a.date.localeCompare(b.date));
   if(!pending.length){toast('No parseable lines found');return;}
   document.getElementById('pm-sub').innerHTML=ex.length?`<strong style="color:var(--urg)">${ex.length} existing tasks will be replaced.</strong> Amber items are auto-generated scheduling reminders.`:'Amber items are auto-generated scheduling reminders.';
@@ -1079,6 +1243,133 @@ function refreshAll(){ensureRec();popSels();renderAlerts();renderMyDay();renderT
 function toast(msg){const el=document.getElementById('toast-el');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600);}
 
 // ─── BOOT ─────────────────────────────────────────────────────
+// ─── SCHEDULE EDITOR ─────────────────────────────────────────────────────────
+let schedEditorProjId = null;
+
+function openSchedEditor(pid){
+  schedEditorProjId = pid;
+  const proj = D.projects.find(p=>p.id===pid);
+  document.getElementById('sched-modal-title').textContent = `Edit schedule — ${proj?proj.name:''}`;
+  // populate AE select
+  const aeEl = document.getElementById('se-ae');
+  aeEl.innerHTML = '<option value="">AE...</option>' + D.members.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
+  document.getElementById('se-date').value = TODAY;
+  renderSchedTaskList();
+  document.getElementById('sched-modal').classList.add('open');
+}
+
+function renderSchedTaskList(){
+  const pid = schedEditorProjId;
+  const tasks = D.tasks.filter(t=>t.projectId===pid).sort((a,b)=>a.date.localeCompare(b.date));
+  const el = document.getElementById('sched-task-list');
+  if(!tasks.length){
+    el.innerHTML = '<div class="empty">No tasks in this schedule yet.</div>';
+    return;
+  }
+  el.innerHTML = tasks.map(t=>{
+    const tm = TM[t.type]||TM.task;
+    const c = mc(t.ae);
+    return `<div style="background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:8px 10px;margin-bottom:4px;display:flex;align-items:flex-start;gap:8px" id="se-row-${t.id}">
+      <div style="flex:1;min-width:0">
+        <!-- VIEW MODE -->
+        <div id="se-view-${t.id}">
+          <div style="font-size:12px;font-weight:500;color:var(--tx)">${t.label}${t.note?` <span style="color:var(--tx3);font-size:10px">· ${t.note}</span>`:''}</div>
+          <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap;align-items:center">
+            ${t.ae?`<span style="background:${ml(c)};color:${c};padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600">${t.ae}</span>`:''}
+            <span style="font-size:10px;color:var(--tx3)">${tm.l}</span>
+            <span style="font-size:10px;color:var(--tx3)">${fmt(t.date)}</span>
+            ${t.notify?`<span style="font-size:10px;background:var(--not-bg);color:var(--not-c);padding:1px 5px;border-radius:2px">→ ${t.notify}</span>`:''}
+            ${t.done?'<span style="font-size:10px;background:var(--inf-bg);color:var(--inf-c);padding:1px 5px;border-radius:2px">Done</span>':''}
+          </div>
+        </div>
+        <!-- EDIT MODE (hidden by default) -->
+        <div id="se-edit-${t.id}" style="display:none">
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">
+            <input type="text" value="${t.label}" style="flex:2;min-width:140px;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:12px;color:var(--tx);font-family:'IBM Plex Mono',monospace" id="sei-label-${t.id}"/>
+            <input type="date" value="${t.date}" style="background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:12px;color:var(--tx);font-family:'IBM Plex Mono',monospace" id="sei-date-${t.id}"/>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <select style="background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" id="sei-ae-${t.id}">
+              <option value="">No AE</option>${D.members.map(m=>`<option value="${m.name}"${t.ae===m.name?' selected':''}>${m.name}</option>`).join('')}
+            </select>
+            <select style="background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" id="sei-type-${t.id}">
+              <option value="task"${t.type==='task'?' selected':''}>General task</option>
+              <option value="schedule_meeting"${t.type==='schedule_meeting'?' selected':''}>Schedule meeting</option>
+              <option value="followup"${t.type==='followup'?' selected':''}>Follow up</option>
+              <option value="feedback"${t.type==='feedback'?' selected':''}>Give feedback</option>
+              <option value="submit"${t.type==='submit'?' selected':''}>Submit/deliver</option>
+            </select>
+            <select style="background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" id="sei-notify-${t.id}">
+              <option value="">No notify</option>
+              <option value="Creative team"${t.notify==='Creative team'?' selected':''}>Creative team</option>
+              <option value="Copy team"${t.notify==='Copy team'?' selected':''}>Copy team</option>
+              <option value="WPA"${t.notify==='WPA'?' selected':''}>WPA</option>
+              <option value="DFW"${t.notify==='DFW'?' selected':''}>DFW</option>
+              <option value="Traffic Team"${t.notify==='Traffic Team'?' selected':''}>Traffic Team</option>
+            </select>
+            <input type="text" value="${t.note||''}" placeholder="Note" style="flex:1;min-width:80px;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" id="sei-note-${t.id}"/>
+          </div>
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <button class="e-sv" style="font-size:11px;padding:4px 10px" onclick="seSaveTask(${t.id})">Save</button>
+            <button class="e-cn" style="font-size:11px;padding:4px 10px" onclick="seCancelEdit(${t.id})">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:3px;flex-shrink:0">
+        <button class="tact" onclick="seStartEdit(${t.id})" title="Edit">Edit</button>
+        <button class="tact del" onclick="seDeleteTask(${t.id})" title="Delete">&#10005;</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function seStartEdit(id){
+  document.getElementById(`se-view-${id}`).style.display='none';
+  document.getElementById(`se-edit-${id}`).style.display='block';
+}
+function seCancelEdit(id){
+  document.getElementById(`se-view-${id}`).style.display='block';
+  document.getElementById(`se-edit-${id}`).style.display='none';
+}
+function seSaveTask(id){
+  const t=D.tasks.find(x=>x.id===id);if(!t)return;
+  t.label=document.getElementById(`sei-label-${id}`).value.trim()||t.label;
+  t.date=document.getElementById(`sei-date-${id}`).value||t.date;
+  t.ae=document.getElementById(`sei-ae-${id}`).value;
+  t.type=document.getElementById(`sei-type-${id}`).value;
+  t.notify=document.getElementById(`sei-notify-${id}`).value;
+  t.note=document.getElementById(`sei-note-${id}`).value.trim();
+  save();renderSchedTaskList();renderProjs();renderMyDay();renderAlerts();toast('Task updated');
+}
+function seDeleteTask(id){
+  if(!confirm('Delete this task?'))return;
+  D.tasks=D.tasks.filter(x=>x.id!==id);
+  save();renderSchedTaskList();renderProjs();renderMyDay();renderAlerts();toast('Task deleted');
+}
+function seAddTask(){
+  const label=document.getElementById('se-label').value.trim();
+  if(!label){toast('Enter a task description');return;}
+  D.tasks.push({
+    id:D.nextId++,
+    projectId:schedEditorProjId,
+    ae:document.getElementById('se-ae').value,
+    type:document.getElementById('se-type').value,
+    label,
+    date:document.getElementById('se-date').value||TODAY,
+    note:document.getElementById('se-note').value.trim(),
+    notify:document.getElementById('se-notify').value,
+    remDays:2,
+    done:false
+  });
+  document.getElementById('se-label').value='';
+  document.getElementById('se-note').value='';
+  save();renderSchedTaskList();renderProjs();renderMyDay();renderAlerts();toast('Task added');
+}
+function closeSchedEditor(){
+  document.getElementById('sched-modal').classList.remove('open');
+  schedEditorProjId=null;
+}
+
 // ─── EDIT PROJECT ────────────────────────────────────────────────────────────
 let editProjId = null;
 function openEditProj(id){
@@ -1098,8 +1389,10 @@ function saveEditProj(){
   closeEditProj();save();refreshAll();toast('Project updated');
 }
 
-// ─── EDIT RECURRING ──────────────────────────────────────────────────────────
+// ─── EDIT RECURRING (full step editor) ───────────────────────────────────────
 let editRecId = null;
+let editRecSteps = []; // live copy of steps being edited
+
 function openEditRec(id){
   const rw=D.recurring.find(x=>x.id===id);if(!rw)return;
   editRecId=id;
@@ -1107,17 +1400,75 @@ function openEditRec(id){
   document.getElementById('er-freq').value=rw.freq;
   document.getElementById('er-anchor').value=rw.anchor||'';
   document.getElementById('er-desc').value=rw.desc||'';
+  // populate project select
+  const erp=document.getElementById('er-proj');
+  erp.innerHTML='<option value="">No project</option>'+D.projects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  erp.value=rw.projectId||'';
+  // deep copy steps
+  editRecSteps=rw.steps.map(s=>({...s}));
+  renderEditRecSteps();
   document.getElementById('editrec-modal').classList.add('open');
 }
-function closeEditRec(){document.getElementById('editrec-modal').classList.remove('open');editRecId=null;}
+
+function renderEditRecSteps(){
+  const names=D.members.map(m=>m.name);
+  const container=document.getElementById('er-steps');
+  container.innerHTML='';
+  editRecSteps.forEach((s,i)=>{
+    const row=document.createElement('div');
+    row.className='rsb-row';
+    row.style='background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:6px 8px;margin-bottom:4px;';
+    row.innerHTML=`
+      <input type="number" value="${s.offset}" placeholder="Offset" style="width:62px;flex:none;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" onchange="editRecSteps[${i}].offset=parseInt(this.value)||0"/>
+      <input type="text" value="${s.label}" placeholder="Step description" style="flex:2;min-width:100px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" oninput="editRecSteps[${i}].label=this.value"/>
+      <select style="min-width:75px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" onchange="editRecSteps[${i}].ae=this.value">
+        <option value="">AE...</option><option value="All"${s.ae==='All'?' selected':''}>All AEs</option>
+        ${names.map(n=>`<option value="${n}"${s.ae===n?' selected':''}>${n}</option>`).join('')}
+      </select>
+      <select style="min-width:85px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" onchange="editRecSteps[${i}].type=this.value">
+        <option value="task"${s.type==='task'?' selected':''}>Task</option>
+        <option value="schedule_meeting"${s.type==='schedule_meeting'?' selected':''}>Schedule mtg</option>
+        <option value="followup"${s.type==='followup'?' selected':''}>Follow up</option>
+        <option value="feedback"${s.type==='feedback'?' selected':''}>Feedback</option>
+        <option value="notify_external"${s.type==='notify_external'?' selected':''}>Notify ext</option>
+        <option value="submit"${s.type==='submit'?' selected':''}>Submit</option>
+      </select>
+      <select style="width:78px;flex:none;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:4px 6px;font-size:11px;color:var(--tx);font-family:'IBM Plex Mono',monospace" onchange="editRecSteps[${i}].notify=this.value">
+        <option value="">Notify...</option>
+        <option value="WPA"${s.notify==='WPA'?' selected':''}>WPA</option>
+        <option value="DFW"${s.notify==='DFW'?' selected':''}>DFW</option>
+        <option value="Creative team"${s.notify==='Creative team'?' selected':''}>Creative</option>
+        <option value="Copy team"${s.notify==='Copy team'?' selected':''}>Copy</option>
+        <option value="Traffic Team"${s.notify==='Traffic Team'?' selected':''}>Traffic</option>
+      </select>
+      <button class="rsb-del" onclick="editRecSteps.splice(${i},1);renderEditRecSteps()">&#10005;</button>`;
+    container.appendChild(row);
+  });
+  if(!editRecSteps.length){
+    container.innerHTML='<div class="empty">No steps yet — add one below.</div>';
+  }
+}
+
+function addEditRecStep(){
+  editRecSteps.push({offset:0,label:'',ae:'',type:'task',notify:''});
+  renderEditRecSteps();
+}
+
+function closeEditRec(){document.getElementById('editrec-modal').classList.remove('open');editRecId=null;editRecSteps=[];}
+
 function saveEditRec(){
   const rw=D.recurring.find(x=>x.id===editRecId);if(!rw)return;
   const n=document.getElementById('er-name').value.trim();
   if(!n){toast('Enter a workflow name');return;}
+  const steps=editRecSteps.filter(s=>s.label.trim());
+  if(!steps.length){toast('Add at least one step');return;}
   rw.name=n;
   rw.freq=document.getElementById('er-freq').value;
   rw.anchor=document.getElementById('er-anchor').value.trim();
   rw.desc=document.getElementById('er-desc').value.trim();
+  const pid=document.getElementById('er-proj').value;
+  rw.projectId=pid?parseInt(pid):null;
+  rw.steps=steps;
   closeEditRec();save();refreshAll();toast('Workflow updated');
 }
 
