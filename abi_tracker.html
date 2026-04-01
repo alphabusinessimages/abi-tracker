@@ -511,6 +511,15 @@ function initFirebase() {
       if (data) {
         D = data;
         if (!D.recurring) D.recurring = [];
+        if (!D.tasks) D.tasks = [];
+        if (!D.projects) D.projects = [];
+        if (!D.members) D.members = [];
+        if (typeof D.nextId !== 'number') D.nextId = 100;
+        // Ensure all recurring items have steps array
+        D.recurring = D.recurring.filter(r => r && r.id);
+        D.tasks = D.tasks.filter(t => t && t.id);
+        D.projects = D.projects.filter(p => p && p.id);
+        D.members = D.members.filter(m => m && m.id);
         ensureRec();
         refreshAll();
         setSaveUI('connected', 'Live — all changes sync instantly');
