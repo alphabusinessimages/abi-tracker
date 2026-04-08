@@ -34,6 +34,20 @@
   --r:6px;--rl:10px;
 }
 body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--tx);min-height:100vh;font-size:13px}
+/* PASSWORD SCREEN */
+.pw-screen{position:fixed;inset:0;background:#1c1a17;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0}
+.pw-screen.hidden{display:none}
+.pw-box{background:#f7f5f2;border-radius:12px;padding:36px 40px;width:100%;max-width:360px;text-align:center}
+.pw-logo{font-family:'Instrument Serif',serif;font-size:28px;color:#1c1a17;margin-bottom:4px}
+.pw-sub{font-size:11px;color:#aaa098;letter-spacing:.07em;text-transform:uppercase;margin-bottom:28px}
+.pw-input{width:100%;background:#f0ede8;border:1px solid #e4dfd7;border-radius:6px;padding:11px 14px;font-family:'IBM Plex Mono',monospace;font-size:14px;color:#1c1a17;text-align:center;letter-spacing:.1em;margin-bottom:10px;outline:none}
+.pw-input:focus{border-color:#1c1a17}
+.pw-input.shake{animation:shake .4s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+.pw-btn{width:100%;background:#1c1a17;color:#f7f5f2;border:none;border-radius:6px;padding:11px;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.05em}
+.pw-btn:hover{opacity:.85}
+.pw-err{font-size:11px;color:#c0392b;margin-top:7px;min-height:16px}
+.pw-hint{font-size:10px;color:#aaa;margin-top:18px;line-height:1.6}
 
 /* SETUP BANNER */
 .setup-banner{background:#1c1a17;color:#f7f5f2;padding:14px 20px;font-size:12px;line-height:1.7;display:none}
@@ -235,6 +249,20 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--tx);
     <li>Save and re-open. Share the updated file with your team. Everyone will see live updates!</li>
   </ol>
   <p style="margin-top:8px;color:#aaa;font-size:11px">In the meantime, the tracker works normally and saves locally in your browser.</p>
+</div>
+
+<!-- PASSWORD SCREEN -->
+<div class="pw-screen" id="pw-screen">
+  <div class="pw-box">
+    <div class="pw-logo">ABI</div>
+    <div class="pw-sub">Production Tracker · Internal</div>
+    <input class="pw-input" id="pw-input" type="password" placeholder="Enter team password"
+      onkeydown="if(event.key==='Enter')checkPw()"
+      autocomplete="current-password"/>
+    <button class="pw-btn" onclick="checkPw()">Unlock</button>
+    <div class="pw-err" id="pw-err"></div>
+    <div class="pw-hint">Contact your team lead for the password.</div>
+  </div>
 </div>
 
 <div class="hdr">
@@ -1243,6 +1271,52 @@ function refreshAll(){ensureRec();popSels();renderAlerts();renderMyDay();renderT
 function toast(msg){const el=document.getElementById('toast-el');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600);}
 
 // ─── BOOT ─────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// PASSWORD PROTECTION
+// ═══════════════════════════════════════════════════════════════
+// ↓↓↓ CHANGE THIS TO YOUR TEAM PASSWORD ↓↓↓
+const TEAM_PASSWORD = "changeme";
+// ↑↑↑ CHANGE THIS TO YOUR TEAM PASSWORD ↑↑↑
+
+const PW_KEY = 'abi_auth_v1';
+
+function checkPw(){
+  const input = document.getElementById('pw-input').value;
+  const err = document.getElementById('pw-err');
+  if(input === TEAM_PASSWORD){
+    // Store auth in localStorage so they don't have to log in every time
+    localStorage.setItem(PW_KEY, btoa(TEAM_PASSWORD));
+    unlockApp();
+  } else {
+    err.textContent = 'Incorrect password — try again.';
+    const inp = document.getElementById('pw-input');
+    inp.classList.remove('shake');
+    void inp.offsetWidth; // force reflow to restart animation
+    inp.classList.add('shake');
+    inp.value = '';
+    inp.focus();
+    setTimeout(()=>err.textContent='', 3000);
+  }
+}
+
+function unlockApp(){
+  document.getElementById('pw-screen').classList.add('hidden');
+  // Focus the who-sel dropdown for easy start
+  setTimeout(()=>{const ws=document.getElementById('who-sel');if(ws)ws.focus();}, 300);
+}
+
+function initAuth(){
+  const stored = localStorage.getItem(PW_KEY);
+  if(stored && stored === btoa(TEAM_PASSWORD)){
+    // Already authenticated
+    unlockApp();
+  } else {
+    // Show password screen
+    document.getElementById('pw-screen').classList.remove('hidden');
+    setTimeout(()=>{const inp=document.getElementById('pw-input');if(inp)inp.focus();}, 100);
+  }
+}
+
 // ─── SCHEDULE EDITOR ─────────────────────────────────────────────────────────
 let schedEditorProjId = null;
 
@@ -1473,6 +1547,7 @@ function saveEditRec(){
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
+initAuth();
 initFirebase();
 </script>
 </body>
